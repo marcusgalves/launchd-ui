@@ -7,11 +7,14 @@ import {
 } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LogViewer } from "@/components/LogViewer"
-import type { LaunchdJob } from "@/types"
-import { getJobDetail, revealInFinder } from "@/lib/invoke"
+import { formatBytes, formatCpuPercent } from "@/lib/resource-utils"
+import type { LaunchdJob, ResourceUsage } from "@/types"
+import { getJobDetail, revealInFinder, saveJobMetadata } from "@/lib/invoke"
 import { FolderOpen } from "lucide-react"
 import { formatCalendarIntervals } from "@/lib/calendar-utils"
 
@@ -20,6 +23,8 @@ type JobDetailProps = {
   open: boolean
   onClose: () => void
   onEdit: (job: LaunchdJob) => void
+  onMetadataSaved: () => Promise<void>
+  usageByPid: Record<number, ResourceUsage>
 }
 
 function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
@@ -32,18 +37,66 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   )
 }
 
-export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) {
+function parseTags(input: string): string[] {
+  const tags: string[] = []
+  for (const rawTag of input.split(",")) {
+    const tag = rawTag.trim()
+    if (!tag || tags.includes(tag)) continue
+    tags.push(tag)
+  }
+  return tags
+}
+
+export function JobDetail({
+  plistPath,
+  open,
+  onClose,
+  onEdit,
+  onMetadataSaved,
+  usageByPid,
+}: JobDetailProps) {
   const [job, setJob] = useState<LaunchdJob | null>(null)
   const [loading, setLoading] = useState(false)
+  const [description, setDescription] = useState("")
+  const [tagsText, setTagsText] = useState("")
+  const [metadataSaving, setMetadataSaving] = useState(false)
+  const [metadataError, setMetadataError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!plistPath || !open) return
     setLoading(true)
+    setMetadataError(null)
     getJobDetail(plistPath)
-      .then(setJob)
+      .then((detail) => {
+        setJob(detail)
+        setDescription(detail.metadata.description)
+        setTagsText(detail.metadata.tags.join(", "))
+      })
       .catch(() => setJob(null))
       .finally(() => setLoading(false))
   }, [plistPath, open])
+
+  const handleSaveMetadata = async () => {
+    if (!job) return
+
+    setMetadataSaving(true)
+    setMetadataError(null)
+    try {
+      const metadata = await saveJobMetadata(job.plist_path, {
+        description,
+        tags: parseTags(tagsText),
+      })
+      setJob({ ...job, metadata })
+      setDescription(metadata.description)
+      setTagsText(metadata.tags.join(", "))
+      await onMetadataSaved()
+    } catch (e) {
+      setMetadataError(String(e))
+    } finally {
+      setMetadataSaving(false)
+    }
+  }
+  const usage = job?.pid ? usageByPid[job.pid] : undefined
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -106,6 +159,8 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
             <Tabs defaultValue="config">
               <TabsList>
                 <TabsTrigger value="config">Configuration</TabsTrigger>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
+                <TabsTrigger value="resources">Resources</TabsTrigger>
                 <TabsTrigger value="logs">Logs</TabsTrigger>
               </TabsList>
 
@@ -179,6 +234,74 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                       </div>
                     </>
                   )}
+              </TabsContent>
+
+              <TabsContent value="notes">
+                <div className="space-y-4">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="job-description">Description</Label>
+                    <textarea
+                      id="job-description"
+                      className="min-h-32 w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+                      placeholder="What this agent does, how to run it safely, operational notes..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="job-tags">Tags</Label>
+                    <Input
+                      id="job-tags"
+                      placeholder="backup, daily, critical"
+                      value={tagsText}
+                      onChange={(e) => setTagsText(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Separate tags with commas.
+                    </p>
+                  </div>
+
+                  {parseTags(tagsText).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {parseTags(tagsText).map((tag) => (
+                        <Badge key={tag} variant="secondary">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {metadataError && (
+                    <div className="text-sm text-destructive">{metadataError}</div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button onClick={handleSaveMetadata} disabled={metadataSaving}>
+                      {metadataSaving ? "Saving..." : "Save Notes"}
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="resources">
+                {job.pid ? (
+                  <dl>
+                    <DetailRow label="PID" value={String(job.pid)} />
+                    <DetailRow
+                      label="CPU"
+                      value={formatCpuPercent(usage?.cpu_percent)}
+                    />
+                    <DetailRow
+                      label="Memory"
+                      value={formatBytes(usage?.memory_bytes)}
+                    />
+                  </dl>
+                ) : (
+                  <div className="text-sm text-muted-foreground py-4">
+                    Resource usage is available when this job has a running PID.
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="logs">

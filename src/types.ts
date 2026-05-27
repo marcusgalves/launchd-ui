@@ -1,6 +1,17 @@
 export type JobSource = "UserAgent" | "SystemAgent" | "SystemDaemon"
 export type JobStatus = "Running" | "Loaded" | "Unloaded" | "Unknown"
 
+export type JobMetadata = {
+  description: string
+  tags: string[]
+}
+
+export type ResourceUsage = {
+  pid: number
+  cpu_percent: number
+  memory_bytes: number
+}
+
 export type JobListEntry = {
   label: string
   pid: number | null
@@ -9,6 +20,7 @@ export type JobListEntry = {
   source: JobSource
   status: JobStatus
   last_run_at: string | null
+  metadata: JobMetadata
 }
 
 export type CalendarInterval = {
@@ -45,4 +57,5 @@ export type LaunchdJob = {
   last_exit_code: number | null
   plist: PlistConfig
   last_run_at: string | null
+  metadata: JobMetadata
 }

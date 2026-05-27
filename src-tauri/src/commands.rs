@@ -1,8 +1,10 @@
 use crate::error::AppError;
 use crate::launchctl;
+use crate::metadata;
 use crate::plist_util;
+use crate::process;
 use crate::types::PlistConfig;
-use crate::types::{JobListEntry, JobStatus, LaunchdJob};
+use crate::types::{JobListEntry, JobMetadata, JobStatus, LaunchdJob, ResourceUsage};
 use std::collections::HashMap;
 
 fn get_last_run_at(config: &PlistConfig) -> Option<String> {
@@ -42,6 +44,7 @@ pub async fn list_jobs() -> Result<Vec<JobListEntry>, AppError> {
 
     let loaded_map: HashMap<String, &launchctl::LoadedService> =
         loaded.iter().map(|s| (s.label.clone(), s)).collect();
+    let metadata_map = metadata::load_all();
 
     let mut entries = Vec::new();
     for (path, source) in plist_files {
@@ -62,6 +65,7 @@ pub async fn list_jobs() -> Result<Vec<JobListEntry>, AppError> {
         };
 
         let last_run_at = get_last_run_at(&config);
+        let metadata = metadata_map.get(&path).cloned().unwrap_or_default();
         entries.push(JobListEntry {
             label: config.label,
             pid,
@@ -70,6 +74,7 @@ pub async fn list_jobs() -> Result<Vec<JobListEntry>, AppError> {
             source,
             status,
             last_run_at,
+            metadata,
         });
     }
 
@@ -108,6 +113,7 @@ pub async fn get_job_detail(plist_path: String) -> Result<LaunchdJob, AppError> 
     };
 
     let last_run_at = get_last_run_at(&plist);
+    let metadata = metadata::get_for_path(&plist_path);
     Ok(LaunchdJob {
         label: plist.label.clone(),
         plist_path,
@@ -117,7 +123,23 @@ pub async fn get_job_detail(plist_path: String) -> Result<LaunchdJob, AppError> 
         last_exit_code: exit_code,
         plist,
         last_run_at,
+        metadata,
     })
+}
+
+#[tauri::command]
+pub async fn save_job_metadata(
+    plist_path: String,
+    metadata: JobMetadata,
+) -> Result<JobMetadata, AppError> {
+    metadata::save_for_path(&plist_path, metadata)
+}
+
+#[tauri::command]
+pub async fn get_resource_usage(
+    pids: Vec<u32>,
+) -> Result<HashMap<u32, ResourceUsage>, AppError> {
+    process::get_resource_usage(&pids)
 }
 
 #[tauri::command]

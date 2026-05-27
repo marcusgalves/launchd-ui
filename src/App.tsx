@@ -4,7 +4,9 @@ import { SearchBar } from "@/components/SearchBar"
 import { JobList } from "@/components/JobList"
 import { JobDetail } from "@/components/JobDetail"
 import { JobForm } from "@/components/JobForm"
+import { ThemeToggle } from "@/components/ThemeToggle"
 import { useJobs } from "@/hooks/useJobs"
+import { useResourceUsage } from "@/hooks/useResourceUsage"
 import {
   startJob,
   stopJob,
@@ -27,6 +29,7 @@ import { Plus, RefreshCw } from "lucide-react"
 
 function App() {
   const {
+    jobs,
     filteredJobs,
     loading,
     error,
@@ -34,8 +37,13 @@ function App() {
     setSearch,
     sourceFilter,
     setSourceFilter,
+    availableTags,
+    selectedTags,
+    toggleTagFilter,
+    clearTagFilters,
     refresh,
   } = useJobs()
+  const { usageByPid, error: resourceError } = useResourceUsage(jobs)
 
   const [selectedPlistPath, setSelectedPlistPath] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -96,6 +104,7 @@ function App() {
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold">launchd-ui</h1>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="outline" size="sm" onClick={refresh}>
               <RefreshCw className="h-4 w-4 mr-1" />
               Refresh
@@ -121,6 +130,10 @@ function App() {
           onSearchChange={setSearch}
           sourceFilter={sourceFilter}
           onSourceFilterChange={setSourceFilter}
+          availableTags={availableTags}
+          selectedTags={selectedTags}
+          onTagToggle={toggleTagFilter}
+          onTagClear={clearTagFilters}
         />
 
         {error && (
@@ -135,10 +148,17 @@ function App() {
           </div>
         )}
 
+        {resourceError && (
+          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {resourceError}
+          </div>
+        )}
+
         <div className="rounded-md border">
           <JobList
             jobs={filteredJobs}
             loading={loading}
+            usageByPid={usageByPid}
             onStart={(job) => handleAction(() => startJob(job.plist_path))}
             onStop={(job) => handleAction(() => stopJob(job.plist_path))}
             onRestart={(job) => handleAction(() => restartJob(job.plist_path))}
@@ -155,6 +175,8 @@ function App() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         onEdit={handleEdit}
+        onMetadataSaved={refresh}
+        usageByPid={usageByPid}
       />
 
       <JobForm

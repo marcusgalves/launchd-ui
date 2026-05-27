@@ -12,6 +12,10 @@ const mockJobs: JobListEntry[] = [
     source: "UserAgent",
     status: "Running",
     last_run_at: String(Date.now()),
+    metadata: {
+      description: "Keeps the example process running.",
+      tags: ["example", "critical"],
+    },
   },
   {
     label: "com.example.stopped",
@@ -21,10 +25,21 @@ const mockJobs: JobListEntry[] = [
     source: "UserAgent",
     status: "Unloaded",
     last_run_at: null,
+    metadata: {
+      description: "",
+      tags: [],
+    },
   },
 ]
 
 const noop = vi.fn()
+const usageByPid = {
+  1234: {
+    pid: 1234,
+    cpu_percent: 2.4,
+    memory_bytes: 52_428_800,
+  },
+}
 
 describe("JobList", () => {
   it("renders loading state", () => {
@@ -32,6 +47,7 @@ describe("JobList", () => {
       <JobList
         jobs={[]}
         loading={true}
+        usageByPid={{}}
         onStart={noop}
         onStop={noop}
         onRestart={noop}
@@ -49,6 +65,7 @@ describe("JobList", () => {
       <JobList
         jobs={[]}
         loading={false}
+        usageByPid={{}}
         onStart={noop}
         onStop={noop}
         onRestart={noop}
@@ -66,6 +83,7 @@ describe("JobList", () => {
       <JobList
         jobs={mockJobs}
         loading={false}
+        usageByPid={usageByPid}
         onStart={noop}
         onStop={noop}
         onRestart={noop}
@@ -79,11 +97,51 @@ describe("JobList", () => {
     expect(screen.getByText("com.example.stopped")).toBeInTheDocument()
   })
 
+  it("renders metadata summary", () => {
+    render(
+      <JobList
+        jobs={mockJobs}
+        loading={false}
+        usageByPid={usageByPid}
+        onStart={noop}
+        onStop={noop}
+        onRestart={noop}
+        onKickstart={noop}
+        onDelete={noop}
+        onSelect={noop}
+        onRevealInFinder={noop}
+      />
+    )
+    expect(screen.getByText("Keeps the example process running.")).toBeInTheDocument()
+    expect(screen.getByText("example")).toBeInTheDocument()
+    expect(screen.getByText("critical")).toBeInTheDocument()
+  })
+
+  it("renders resource usage for running jobs", () => {
+    render(
+      <JobList
+        jobs={mockJobs}
+        loading={false}
+        usageByPid={usageByPid}
+        onStart={noop}
+        onStop={noop}
+        onRestart={noop}
+        onKickstart={noop}
+        onDelete={noop}
+        onSelect={noop}
+        onRevealInFinder={noop}
+      />
+    )
+    expect(screen.getByText("2.4%")).toBeInTheDocument()
+    expect(screen.getByText("50 MB")).toBeInTheDocument()
+  })
+
   it("renders status badges", () => {
     render(
       <JobList
         jobs={mockJobs}
         loading={false}
+        usageByPid={usageByPid}
         onStart={noop}
         onStop={noop}
         onRestart={noop}
@@ -102,6 +160,7 @@ describe("JobList", () => {
       <JobList
         jobs={mockJobs}
         loading={false}
+        usageByPid={usageByPid}
         onStart={noop}
         onStop={noop}
         onRestart={noop}

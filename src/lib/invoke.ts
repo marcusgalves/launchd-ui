@@ -1,10 +1,22 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { JobListEntry, LaunchdJob, PlistConfig } from "@/types"
+import type {
+  JobListEntry,
+  JobMetadata,
+  LaunchdJob,
+  PlistConfig,
+  ResourceUsage,
+} from "@/types"
 
 export const listJobs = () => invoke<JobListEntry[]>("list_jobs")
 
 export const getJobDetail = (plistPath: string) =>
   invoke<LaunchdJob>("get_job_detail", { plistPath })
+
+export const saveJobMetadata = (plistPath: string, metadata: JobMetadata) =>
+  invoke<JobMetadata>("save_job_metadata", { plistPath, metadata })
+
+export const getResourceUsage = (pids: number[]) =>
+  invoke<Record<string, ResourceUsage>>("get_resource_usage", { pids })
 
 export const startJob = (plistPath: string) =>
   invoke<void>("start_job", { plistPath })

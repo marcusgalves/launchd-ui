@@ -26,6 +26,10 @@ const fakeJobs: JobListEntry[] = [
     source: "UserAgent",
     status: "Running",
     last_run_at: String(Date.now()),
+    metadata: {
+      description: "Runs the local development helper.",
+      tags: ["dev", "helper"],
+    },
   },
   {
     label: "com.example.stopped-agent",
@@ -35,6 +39,10 @@ const fakeJobs: JobListEntry[] = [
     source: "UserAgent",
     status: "Unloaded",
     last_run_at: null,
+    metadata: {
+      description: "",
+      tags: [],
+    },
   },
   {
     label: "com.apple.system-agent",
@@ -44,6 +52,10 @@ const fakeJobs: JobListEntry[] = [
     source: "SystemAgent",
     status: "Running",
     last_run_at: String(Date.now() - 3600000),
+    metadata: {
+      description: "",
+      tags: ["system"],
+    },
   },
 ]
 
@@ -56,6 +68,10 @@ const fakeJobDetails: Record<string, LaunchdJob> = {
     pid: 1234,
     last_exit_code: 0,
     last_run_at: String(Date.now()),
+    metadata: {
+      description: "Runs the local development helper.",
+      tags: ["dev", "helper"],
+    },
     plist: {
       ...defaultPlistConfig,
       label: "com.example.running-agent",
@@ -74,6 +90,18 @@ type CommandHandler = (args: Record<string, unknown>) => unknown
 
 const handlers: Record<string, CommandHandler> = {
   list_jobs: () => [...fakeJobs],
+  save_job_metadata: (_args) => _args.metadata,
+  get_resource_usage: (args) =>
+    Object.fromEntries(
+      (args.pids as number[]).map((pid) => [
+        String(pid),
+        {
+          pid,
+          cpu_percent: pid === 1234 ? 2.4 : 0.1,
+          memory_bytes: pid === 1234 ? 52_428_800 : 10_485_760,
+        },
+      ])
+    ),
   get_job_detail: (args) => {
     const path = args.plistPath as string
     return fakeJobDetails[path] ?? null

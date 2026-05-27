@@ -16,6 +16,21 @@ pub enum JobStatus {
     Unknown,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct JobMetadata {
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ResourceUsage {
+    pub pid: u32,
+    pub cpu_percent: f64,
+    pub memory_bytes: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobListEntry {
     pub label: String,
@@ -25,6 +40,7 @@ pub struct JobListEntry {
     pub source: JobSource,
     pub status: JobStatus,
     pub last_run_at: Option<String>,
+    pub metadata: JobMetadata,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +80,7 @@ pub struct LaunchdJob {
     pub last_exit_code: Option<i32>,
     pub plist: PlistConfig,
     pub last_run_at: Option<String>,
+    pub metadata: JobMetadata,
 }
 
 #[cfg(test)]
@@ -97,6 +114,7 @@ mod tests {
             source: JobSource::UserAgent,
             status: JobStatus::Running,
             last_run_at: None,
+            metadata: JobMetadata::default(),
         };
         let json = serde_json::to_string(&entry).unwrap();
         let deserialized: JobListEntry = serde_json::from_str(&json).unwrap();

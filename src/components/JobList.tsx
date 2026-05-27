@@ -6,11 +6,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { JobRow } from "@/components/JobRow"
-import type { JobListEntry } from "@/types"
+import type { JobListEntry, ResourceUsage } from "@/types"
 
 type JobListProps = {
   jobs: JobListEntry[]
   loading: boolean
+  usageByPid: Record<number, ResourceUsage>
   onStart: (job: JobListEntry) => void
   onStop: (job: JobListEntry) => void
   onRestart: (job: JobListEntry) => void
@@ -23,6 +24,7 @@ type JobListProps = {
 export function JobList({
   jobs,
   loading,
+  usageByPid,
   onStart,
   onStop,
   onRestart,
@@ -55,6 +57,8 @@ export function JobList({
           <TableHead className="w-24">Source</TableHead>
           <TableHead className="w-24">Status</TableHead>
           <TableHead className="w-16">PID</TableHead>
+          <TableHead className="w-20">CPU</TableHead>
+          <TableHead className="w-24">Memory</TableHead>
           <TableHead className="w-24">Last Run</TableHead>
           <TableHead className="w-28">Actions</TableHead>
         </TableRow>
@@ -64,6 +68,7 @@ export function JobList({
           <JobRow
             key={job.plist_path}
             job={job}
+            usage={job.pid ? usageByPid[job.pid] : undefined}
             onStart={onStart}
             onStop={onStop}
             onRestart={onRestart}

@@ -19,6 +19,8 @@ import {
   FolderOpen,
   Zap,
 } from "lucide-react"
+import { formatBytes, formatCpuPercent } from "@/lib/resource-utils"
+import type { ResourceUsage } from "@/types"
 
 function formatRelativeTime(epochMillis: string): string {
   const ms = Number(epochMillis)
@@ -38,6 +40,7 @@ function formatRelativeTime(epochMillis: string): string {
 
 type JobRowProps = {
   job: JobListEntry
+  usage?: ResourceUsage
   onStart: (job: JobListEntry) => void
   onStop: (job: JobListEntry) => void
   onRestart: (job: JobListEntry) => void
@@ -89,6 +92,7 @@ function SourceBadge({ source }: { source: JobListEntry["source"] }) {
 
 export function JobRow({
   job,
+  usage,
   onStart,
   onStop,
   onRestart,
@@ -98,13 +102,46 @@ export function JobRow({
   onRevealInFinder,
 }: JobRowProps) {
   const isUserAgent = job.source === "UserAgent"
+  const hasMetadata =
+    job.metadata.description.trim().length > 0 || job.metadata.tags.length > 0
 
   return (
     <TableRow
       className="cursor-pointer hover:bg-muted/50"
       onClick={() => onSelect(job)}
     >
-      <TableCell className="font-medium truncate max-w-0">{job.label}</TableCell>
+      <TableCell className="max-w-0">
+        <div className="space-y-1">
+          <div className="truncate font-medium">{job.label}</div>
+          {hasMetadata && (
+            <div className="space-y-1">
+              {job.metadata.description && (
+                <div className="truncate text-xs text-muted-foreground">
+                  {job.metadata.description}
+                </div>
+              )}
+              {job.metadata.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {job.metadata.tags.slice(0, 4).map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="max-w-24 truncate px-1.5 py-0 text-[11px]"
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                  {job.metadata.tags.length > 4 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{job.metadata.tags.length - 4}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </TableCell>
       <TableCell>
         <SourceBadge source={job.source} />
       </TableCell>
@@ -113,6 +150,12 @@ export function JobRow({
       </TableCell>
       <TableCell className="text-muted-foreground tabular-nums">
         {job.pid ?? "—"}
+      </TableCell>
+      <TableCell className="text-muted-foreground text-xs tabular-nums">
+        {job.pid ? formatCpuPercent(usage?.cpu_percent) : "—"}
+      </TableCell>
+      <TableCell className="text-muted-foreground text-xs tabular-nums">
+        {job.pid ? formatBytes(usage?.memory_bytes) : "—"}
       </TableCell>
       <TableCell className="text-muted-foreground text-xs tabular-nums">
         {job.last_run_at ? formatRelativeTime(job.last_run_at) : "—"}

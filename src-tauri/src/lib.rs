@@ -1,7 +1,9 @@
 mod commands;
 mod error;
 mod launchctl;
+mod metadata;
 mod plist_util;
+mod process;
 mod types;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -10,6 +12,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_jobs,
             commands::get_job_detail,
+            commands::save_job_metadata,
+            commands::get_resource_usage,
             commands::start_job,
             commands::stop_job,
             commands::restart_job,

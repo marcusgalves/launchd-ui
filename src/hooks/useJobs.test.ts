@@ -38,6 +38,25 @@ describe("useJobs", () => {
     })
   })
 
+  it("filters by description search term", async () => {
+    const { result } = renderHook(() => useJobs())
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    act(() => {
+      result.current.setSearch("development helper")
+    })
+
+    await waitFor(() => {
+      expect(result.current.filteredJobs.length).toBe(1)
+      expect(result.current.filteredJobs[0].label).toBe(
+        "com.example.running-agent"
+      )
+    })
+  })
+
   it("filters by source", async () => {
     const { result } = renderHook(() => useJobs())
 
@@ -52,6 +71,35 @@ describe("useJobs", () => {
     await waitFor(() => {
       expect(result.current.filteredJobs.length).toBe(1)
       expect(result.current.filteredJobs[0].source).toBe("SystemAgent")
+    })
+  })
+
+  it("builds available tags and filters by selected tags", async () => {
+    const { result } = renderHook(() => useJobs())
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    expect(result.current.availableTags).toEqual(["dev", "helper", "system"])
+
+    act(() => {
+      result.current.toggleTagFilter("system")
+    })
+
+    await waitFor(() => {
+      expect(result.current.selectedTags).toEqual(["system"])
+      expect(result.current.filteredJobs.length).toBe(1)
+      expect(result.current.filteredJobs[0].label).toBe("com.apple.system-agent")
+    })
+
+    act(() => {
+      result.current.clearTagFilters()
+    })
+
+    await waitFor(() => {
+      expect(result.current.selectedTags).toEqual([])
+      expect(result.current.filteredJobs.length).toBe(3)
     })
   })
 
